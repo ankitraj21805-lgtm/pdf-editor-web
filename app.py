@@ -1,16 +1,16 @@
 import os
-from flask import Flask, request, render_template_string, send_file, redirect, url_file_stream, session
+from flask import Flask, request, render_template_string, send_file, redirect, session
 import fitz  # PyMuPDF
 
 app = Flask(__name__)
 app.secret_key = "super-secret-free-key-123"  # Session secure karne ke liye
 
-# --- CONFIGURATION (FREE LOGIN DETAILS) ---
-# Aap yahan apna user/pass badal sakte hain jo client ko dena hai
+# --- CONFIGURATION (LOGIN DETAILS) ---
+# Aap yahan apna username aur password badal sakte hain jo client ko dena hai
 CLIENT_USERNAME = "admin"
 CLIENT_PASSWORD = "85807"
 
-# Minimal Professional HTML Interface (Bina kisi extra file ke single script me)
+# Minimal Professional HTML Interface (Single file me setup)
 HTML_LAYOUT = """
 <!DOCTYPE html>
 <html>
@@ -76,25 +76,34 @@ def dashboard():
             output_path = "temp_output.pdf"
             file.save(input_path)
             
-            # PDF Processing Engine
+            # PDF Processing Engine (Bina external font file ke)
             doc = fitz.open(input_path)
-            font_path = "arial.ttf"
-            font_name = "helv"
-            
-            if os.path.exists(font_path):
-                font_name = "custom_font"
+            font_name = "helv"  # Default Standard Helvetica (Arial matching)
                 
             for page in doc:
+                # Purane text ki exact location find karein
                 text_instances = page.search_for(old_text)
                 for rect in text_instances:
-                    page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1)) # Hide old text
-                    if font_name == "custom_font":
-                        page.insert_font(fontname=font_name, fontfile=font_path)
-                    page.insert_text(rect.tl, new_text, fontsize=9.5, fontname=font_name, color=(0, 0, 0))
+                    # 1. Purane text ko hide karne ke liye white box draw karein
+                    page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
                     
+                    # 2. Same coordinate par naya text system font se draw karein
+                    page.insert_text(
+                        rect.tl, 
+                        new_text, 
+                        fontsize=9.5,      # Default banking statement size
+                        fontname=font_name, 
+                        color=(0, 0, 0)    # Pure Black color
+                    )
+                    
+            # Compress aur save karein taaki structure intact rahe
             doc.save(output_path, garbage=4, deflate=True)
             doc.close()
             
+            # Purani temp file delete karein clean-up ke liye
+            if os.path.exists(input_path):
+                os.remove(input_path)
+                
             return send_file(output_path, as_attachment=True, download_name="Modified_Statement.pdf")
 
     dashboard_form = """

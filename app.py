@@ -3,32 +3,34 @@ from flask import Flask, request, render_template_string, send_file, redirect, s
 import fitz  # PyMuPDF
 
 app = Flask(__name__)
-app.secret_key = "super-secret-free-key-123"  # Session secure karne ke liye
+app.secret_key = "sbi-panel-secure-key-2026"
 
-# --- CONFIGURATION (LOGIN DETAILS) ---
-# Aap yahan apna username aur password badal sakte hain jo client ko dena hai
+# --- LOGIN CREDENTIALS ---
 CLIENT_USERNAME = "admin"
 CLIENT_PASSWORD = "85807"
 
-# Minimal Professional HTML Interface (Single file me setup)
+# Clean Dashboard UI Layout
 HTML_LAYOUT = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Secure PDF Editor Portal</title>
+    <title>SBI PDF Core Layout Editor</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 400px; }
-        h2 { color: #333; margin-top: 0; text-align: center; }
-        input[type="text"], input[type="password"], input[type="file"] { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        .error { color: red; text-align: center; margin-bottom: 10px; }
-        label { font-size: 14px; color: #555; font-weight: 600; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #eef2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 500px; }
+        h2 { color: #1e3a8a; margin-top: 0; text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; }
+        h3 { color: #4b5563; font-size: 16px; margin-top: 20px; border-left: 4px solid #10b981; padding-left: 8px; }
+        input[type="text"], input[type="password"], input[type="file"] { width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
+        .row { display: flex; gap: 10px; }
+        .row input { flex: 1; }
+        button { width: 100%; padding: 14px; background: #1e40af; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+        button:hover { background: #1d4ed8; }
+        .error { color: #dc2626; text-align: center; font-weight: bold; }
+        label { font-size: 13px; color: #374151; font-weight: 600; display: block; margin-top: 5px; }
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="container">
         {{ content | safe }}
     </div>
 </body>
@@ -39,24 +41,23 @@ HTML_LAYOUT = """
 def login():
     if 'logged_in' in session:
         return redirect('/dashboard')
-    
     error = ""
     if request.method == 'POST':
         if request.form['username'] == CLIENT_USERNAME and request.form['password'] == CLIENT_PASSWORD:
             session['logged_in'] = True
             return redirect('/dashboard')
         else:
-            error = "Invalid Credentials! Please try again."
+            error = "Invalid Credentials!"
             
     login_form = f"""
-    <h2>Client Login Portal</h2>
+    <h2>Secure Client Portal</h2>
     {f'<p class="error">{error}</p>' if error else ''}
     <form method="post">
         <label>Username</label>
         <input type="text" name="username" required>
         <label>Password</label>
         <input type="password" name="password" required>
-        <button type="submit">Login</button>
+        <button type="submit">Login Portal</button>
     </form>
     """
     return render_template_string(HTML_LAYOUT, content=login_form)
@@ -68,58 +69,115 @@ def dashboard():
         
     if request.method == 'POST':
         file = request.files['pdf_file']
-        old_text = request.form['old_text']
-        new_text = request.form['new_text']
         
         if file and file.filename.endswith('.pdf'):
-            input_path = "temp_input.pdf"
-            output_path = "temp_output.pdf"
+            input_path = "temp_in.pdf"
+            output_path = "temp_out.pdf"
             file.save(input_path)
             
-            # PDF Processing Engine (Bina external font file ke)
             doc = fitz.open(input_path)
-            font_name = "helv"  # Default Standard Helvetica (Arial matching)
+            font_name = "helv"  # Precise Helvetica vector alignment
+            
+            # Map values from Form Input Fields
+            replacements = {
+                # Account Details Section
+                "Mr. ABHISHEK REKVAR": request.form['acc_name'].strip(),
+                "45222567869": request.form['acc_num'].strip(),
+                "45,000.00CR": request.form['clear_bal'].strip() + "CR",
                 
+                # Dynamic Transaction Items Mapped from Images
+                "19,500.00": request.form['t1_amount'].strip(),
+                "13,63,259.65": request.form['t1_balance'].strip(),
+                
+                "36,000.00": request.form['t2_amount'].strip(),
+                "13,99,259.65": request.form['t2_balance'].strip(),
+                
+                "18,100.00": request.form['t3_amount'].strip(),
+                "13,81,159.65": request.form['t3_balance'].strip(),
+                
+                "19,300.00": request.form['t4_amount'].strip(),
+                "13,61,859.65": request.form['t4_balance'].strip(),
+            }
+            
             for page in doc:
-                # Purane text ki exact location find karein
-                text_instances = page.search_for(old_text)
-                for rect in text_instances:
-                    # 1. Purane text ko hide karne ke liye white box draw karein
-                    page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
+                for old_val, new_val in replacements.items():
+                    if not old_val or not new_val:
+                        continue
                     
-                    # 2. Same coordinate par naya text system font se draw karein
-                    page.insert_text(
-                        rect.tl, 
-                        new_text, 
-                        fontsize=9.5,      # Default banking statement size
-                        fontname=font_name, 
-                        color=(0, 0, 0)    # Pure Black color
-                    )
-                    
-            # Compress aur save karein taaki structure intact rahe
+                    # Target exact bounding box positions
+                    rects = page.search_for(old_val)
+                    for rect in rects:
+                        # Draw masking box to preserve document vectors
+                        page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
+                        
+                        # Apply layout matching text overwrite
+                        page.insert_text(
+                            rect.tl, 
+                            new_val, 
+                            fontsize=9.5, 
+                            fontname=font_name, 
+                            color=(0, 0, 0)
+                        )
+            
             doc.save(output_path, garbage=4, deflate=True)
             doc.close()
             
-            # Purani temp file delete karein clean-up ke liye
             if os.path.exists(input_path):
                 os.remove(input_path)
                 
-            return send_file(output_path, as_attachment=True, download_name="Modified_Statement.pdf")
+            return send_file(output_path, as_attachment=True, download_name="SBI_Statement_Fixed.pdf")
 
     dashboard_form = """
-    <h2>PDF Smart Modifier</h2>
-    <p style="text-align:center; font-size:13px; color:#777;">Upload PDF and details to auto-align</p>
+    <h2>SBI Layout Smart Panel</h2>
     <form method="post" enctype="multipart/form-data">
-        <label>Select Statement PDF</label>
+        <label>Upload Original SBI Statement PDF</label>
         <input type="file" name="pdf_file" accept=".pdf" required>
-        <label>Find Text (e.g., 45,000.00CR)</label>
-        <input type="text" name="old_text" placeholder="Exact old value" required>
-        <label>Replace With</label>
-        <input type="text" name="new_text" placeholder="Exact new value" required>
-        <button type="submit">Process & Download</button>
+        
+        <h3>1. Primary Account Metadata</h3>
+        <label>Account Holder Name</label>
+        <input type="text" name="acc_name" value="Mr. ABHISHEK REKVAR" required>
+        
+        <div class="row">
+            <div>
+                <label>Account Number</label>
+                <input type="text" name="acc_num" value="45222567869" required>
+            </div>
+            <div>
+                <label>Clear Balance Amount</label>
+                <input type="text" name="clear_bal" value="45,000.00" required>
+            </div>
+        </div>
+
+        <h3>2. Transaction Details (As Seen In Images)</h3>
+        
+        <label>Transaction 1 (Transfer - SHOBHA)</label>
+        <div class="row">
+            <input type="text" name="t1_amount" value="19,500.00" placeholder="Amount">
+            <input type="text" name="t1_balance" value="13,63,259.65" placeholder="Running Balance">
+        </div>
+
+        <label>Transaction 2 (Transfer - SUMITM)</label>
+        <div class="row">
+            <input type="text" name="t2_amount" value="36,000.00" placeholder="Amount">
+            <input type="text" name="t2_balance" value="13,99,259.65" placeholder="Running Balance">
+        </div>
+
+        <label>Transaction 3 (Transfer - SEEMAS)</label>
+        <div class="row">
+            <input type="text" name="t3_amount" value="18,100.00" placeholder="Amount">
+            <input type="text" name="t3_balance" value="13,81,159.65" placeholder="Running Balance">
+        </div>
+
+        <label>Transaction 4 (Transfer - KOMALS)</label>
+        <div class="row">
+            <input type="text" name="t4_amount" value="19,300.00" placeholder="Amount">
+            <input type="text" name="t4_balance" value="13,61,859.65" placeholder="Running Balance">
+        </div>
+
+        <button type="submit">Modify Layout & Download PDF</button>
     </form>
     <br>
-    <a href="/logout" style="display:block; text-align:center; color:#ff4d4d; text-decoration:none; font-size:14px;">Logout Portal</a>
+    <a href="/logout" style="display:block; text-align:center; color:#ef4444; text-decoration:none; font-size:13px; font-weight:bold;">Secure Logout</a>
     """
     return render_template_string(HTML_LAYOUT, content=dashboard_form)
 
